@@ -1,4 +1,4 @@
-/*package person.app
+package person.app
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -15,4 +15,4 @@ fun isInternetAvailable(context: Context): Boolean {
         val networkInfo = connectivityManager.activeNetworkInfo
         return networkInfo?.isConnected == true
     }
-}*/
+}

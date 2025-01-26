@@ -20,6 +20,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // Enable room auto-migrations
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
@@ -45,7 +46,6 @@ android {
         compose = true
     }
 }
-
 
 dependencies {
 

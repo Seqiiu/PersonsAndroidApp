@@ -27,21 +27,27 @@ class DefaultPersonRepository @Inject constructor(
         }
 
     override suspend fun add(person: User) {
-        userDao.insertUser(
-            UserEntity(
-            id = person.id,
-            name = person.name,
-            username = person.username,
-            email = person.email,
-            street = person.address.street,
-            suite = person.address.suite,
-            city = person.address.city,
-            zipcode = person.address.zipcode,
-            phone = person.phone,
-            website = person.website,
-            companyName = person.company.name,
-            companyCatchPhrase = person.company.catchPhrase)
-        )
+        val exists = userDao.exists(person.id)
+        if (!exists) {
+            userDao.insertUser(
+                UserEntity(
+                    id = person.id,
+                    name = person.name,
+                    username = person.username,
+                    email = person.email,
+                    street = person.address.street,
+                    suite = person.address.suite,
+                    city = person.address.city,
+                    zipcode = person.address.zipcode,
+                    phone = person.phone,
+                    website = person.website,
+                    companyName = person.company.name,
+                    companyCatchPhrase = person.company.catchPhrase
+                )
+            )
+        } else {
+            println("User with id ${person.id} already exists.")
+        }
     }
 
     private fun UserEntity.toUser(): User {

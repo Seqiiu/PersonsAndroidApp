@@ -30,4 +30,7 @@ interface UserEntityDao {
 
     @Query("SELECT * FROM users")
     fun getAllUsers(): Flow<List<UserEntity>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM users WHERE id = :id)")
+    suspend fun exists(id: Int): Boolean
 }

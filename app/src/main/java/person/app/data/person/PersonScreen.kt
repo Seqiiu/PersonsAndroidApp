@@ -3,17 +3,25 @@ package person.app.data.person
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +41,10 @@ import androidx.navigation.NavController
 import person.app.data.models.Address
 import person.app.data.models.Company
 import person.app.data.models.User
+import person.app.isInternetAvailable
+import person.app.ui.ApiService
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 @Composable
 fun PersonScreen(
@@ -41,71 +54,82 @@ fun PersonScreen(
 ) {
     val items by viewModel.uiState.collectAsStateWithLifecycle()
     if (items is UiState.Success) {
-        PersonTypeScreen(
-            items = (items as UiState.Success).data,
+        UserScreen(
             onSave = viewModel::addUser,
-            onRowClick = { navigationController.navigate("details") },
-            modifier = modifier
+            items = (items as UiState.Success).data
         )
     }
 }
 
 @Composable
-internal fun PersonTypeScreen(
-    items: List<User>,
+fun UserScreen(
     onSave: (user: User) -> Unit,
-    onRowClick: () -> Unit,
-    modifier: Modifier = Modifier
+    items: List<User>
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        var dog by remember { mutableStateOf("Czarek") }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            TextField(
-                value = dog,
-                onValueChange = { dog = it }
-            )
-            val user = User(1,"s","s","s",
-                Address("s","s","s,","s")
-                ,"s","s", Company("s","d")
-            )
+    var users by remember { mutableStateOf<List<User>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isInternetAvailable by remember { mutableStateOf(true) }
 
-            Button(modifier = Modifier.width(96.dp), onClick = { onSave(user) }) {
-                Text("Save")
+    // Retrofit setup
+    val retrofit = Retrofit.Builder()
+        .baseUrl("https://jsonplaceholder.typicode.com/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    val apiService = retrofit.create(ApiService::class.java)
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        isInternetAvailable = isInternetAvailable(context)
+
+        if (isInternetAvailable) {
+            try {
+                // Get users from API
+                val fetchedUsers = apiService.getUsers()
+                // Save users to the database
+                fetchedUsers.forEach { user ->
+                    onSave(user)
+                }
+                users = fetchedUsers
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading = false
             }
+        } else {
+                users = items
+                isLoading = false
         }
+    }
 
-        items.forEach {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.clickable {
-                    onRowClick()
-                }
-            ) {
-                Text("🐕", modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(brush = mainGradient())
-                    .padding(8.dp)
-                )
 
-                Column(
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Text(it.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text(it.phone, fontSize = 12.sp, fontWeight = FontWeight.Light)
-                }
-
-                Spacer(Modifier.weight(1f))
+    // Display loading state or user data
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        LazyColumn(modifier = Modifier.padding(top = 80.dp)) {
+            items(users.size) { index ->
+                UserCard(user = users[index])
             }
         }
     }
 }
 
-private fun mainGradient(): Brush {
-    return Brush.linearGradient(
-        colors = listOf(Color(0xFF65558F), Color(0xFFEEB6E8))
-    )
+@Composable
+fun UserCard(user: User) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        elevation = CardDefaults.cardElevation(8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = user.name, style = MaterialTheme.typography.titleMedium)
+            Text(text = "@${user.username}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = user.email, style = MaterialTheme.typography.bodySmall)
+            Text(text = user.phone, style = MaterialTheme.typography.bodySmall)
+            Text(text = "Address: ${user.address.street}, ${user.address.city}", style = MaterialTheme.typography.bodySmall)
+        }
+    }
 }
